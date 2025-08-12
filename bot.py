@@ -10,6 +10,10 @@ import re
 import string
 import random
 
+# Flask imports for Render keep alive
+from flask import Flask
+import threading
+
 # === Configuration ===
 BOT_TOKEN = "8272701346:AAHiZxjcuB2ic7ujxsgG2cy-yIKvzsG-qco"
 API_ID = 21519773
@@ -28,6 +32,19 @@ active_users = {}  # user_id: expires_at
 user_response_tracker = {}
 message_map = {}
 last_active_user = None
+
+# === Flask Keep Alive Server ===
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run_web():
+    app.run(host="0.0.0.0", port=8080)
+
+# Start Flask server in a separate thread
+threading.Thread(target=run_web).start()
 
 # === Utility Functions ===
 def parse_duration(s):
