@@ -42,8 +42,11 @@ def home():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    json_data = request.get_json(force=True)
-    asyncio.run(dp.feed_update(bot, Update.model_validate(json_data)))
+    try:
+        json_data = request.get_json(force=True)
+        asyncio.run(dp.feed_update(bot, Update.model_validate(json_data)))
+    except Exception as e:
+        print("🚨 Webhook error:", e)
     return "OK", 200
 
 def run_web():
@@ -213,3 +216,4 @@ async def main():
 if __name__ == "__main__":
     threading.Thread(target=run_web).start()
     asyncio.run(main())
+
