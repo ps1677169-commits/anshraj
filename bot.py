@@ -3,15 +3,13 @@ import time
 import aiosqlite
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import Message, Update
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import re
 import string
 import random
-
-# Flask imports for Render keep alive
-from flask import Flask
+from flask import Flask, request
 import threading
 
 # === Configuration ===
@@ -19,8 +17,10 @@ BOT_TOKEN = "8272701346:AAHiZxjcuB2ic7ujxsgG2cy-yIKvzsG-qco"
 API_ID = 21519773
 API_HASH = "a37a4bd65e6864e813df173dbeb360f9"
 STRING_SESSION = "1BVtsOIEBu4JHIjLlBFxmI5sXOz3fMhUybO1s3aE-JU_Tx4E683MJarQ8Dq2t7nvRob25uiUuHuAgAbbDmPkpFoiXZf0_j6jVo7jPT9yCLdp2ihNYg856wH13bPxRkEcSY1FKVey39M92Jlh1wJ20hv0LDgrXVksvZg1cDnOdGz-NM2yR0q98Ji5RSAMv7oVDNh4-MfRkDwNONdqDLv9LtWT__J0mhqFiZ-Eye9vHjc6rVNfu95tsxa8abwt9ZOhCxY8CX5k1_Kj9Y8oXesnxUlnfwxgf-vyTz4EmtKum5rDsNOLGdcCmls0h9PDSqrCLGIU2T3Gqj_JY9zWBU6C6t9EnQILn8Tc="
-ADMIN_ID = 7977745800  # Replace with your Telegram user ID
+ADMIN_ID = 7977745800
 DB_NAME = "passes.db"
+
+WEBHOOK_URL = "https://anshraj-zpz1.onrender.com/webhook"
 
 # === Init Bots ===
 bot = Bot(token=BOT_TOKEN)
@@ -28,23 +28,26 @@ dp = Dispatcher()
 client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
 # === Active user tracking ===
-active_users = {}  # user_id: expires_at
+active_users = {}
 user_response_tracker = {}
 message_map = {}
 last_active_user = None
 
-# === Flask Keep Alive Server ===
-app = Flask('')
+# === Flask Server ===
+app = Flask(__name__)
 
 @app.route('/')
 def home():
     return "Bot is alive!"
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    json_data = request.get_json(force=True)
+    asyncio.run(dp.feed_update(bot, Update.model_validate(json_data)))
+    return "OK", 200
+
 def run_web():
     app.run(host="0.0.0.0", port=8080)
-
-# Start Flask server in a separate thread
-threading.Thread(target=run_web).start()
 
 # === Utility Functions ===
 def parse_duration(s):
@@ -97,7 +100,7 @@ async def validate_pass(code: str):
             if row and row[0] > now:
                 await db.execute("DELETE FROM passes WHERE code = ?", (code,))
                 await db.commit()
-                return row[0]  # Return expiry timestamp
+                return row[0]
     return None
 
 # === Commands ===
@@ -191,7 +194,7 @@ async def prince_info_reply(event):
     user_response_tracker[original_user_id] = count + 1
 
     if count == 0:
-        return  # Skip first automatic bot message
+        return
 
     try:
         await bot.send_message(original_user_id, event.message.text)
@@ -203,8 +206,10 @@ async def main():
     await init_db()
     await load_active_users()
     await client.start()
+    await bot.set_webhook(WEBHOOK_URL)
+    print("✅ Webhook set successfully!")
     print("✅ Telethon client started!")
-    await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    threading.Thread(target=run_web).start()
     asyncio.run(main())
