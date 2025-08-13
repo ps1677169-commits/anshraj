@@ -44,6 +44,7 @@ def home():
 def webhook():
     try:
         json_data = request.get_json(force=True)
+        print("📩 Incoming update:", json_data)  # Debug log
         asyncio.run(dp.feed_update(bot, Update.model_validate(json_data)))
     except Exception as e:
         print("🚨 Webhook error:", e)
